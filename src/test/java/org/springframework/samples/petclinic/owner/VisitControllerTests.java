@@ -16,6 +16,7 @@
 
 package org.springframework.samples.petclinic.owner;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -70,6 +71,45 @@ class VisitControllerTests {
 		mockMvc.perform(get("/owners/{ownerId}/pets/{petId}/visits/new", TEST_OWNER_ID, TEST_PET_ID))
 			.andExpect(status().isOk())
 			.andExpect(view().name("pets/createOrUpdateVisitForm"));
+	}
+
+	@Test
+	void initNewVisitFormPopulatesModel() throws Exception {
+		mockMvc.perform(get("/owners/{ownerId}/pets/{petId}/visits/new", TEST_OWNER_ID, TEST_PET_ID))
+			.andExpect(status().isOk())
+			.andExpect(model().attributeExists("visit"))
+			.andExpect(model().attributeExists("pet"))
+			.andExpect(model().attributeExists("owner"))
+			.andExpect(model().attribute("minVisitDate", LocalDate.now().plusDays(1)))
+			.andExpect(view().name("pets/createOrUpdateVisitForm"));
+	}
+
+	@Test
+	void initNewVisitFormOwnerNotFound() {
+		int unknownOwnerId = 99;
+		given(this.owners.findById(unknownOwnerId)).willReturn(Optional.empty());
+		assertThatThrownBy(
+				() -> mockMvc.perform(get("/owners/{ownerId}/pets/{petId}/visits/new", unknownOwnerId, TEST_PET_ID)))
+			.hasRootCauseInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void initNewVisitFormPetNotFound() {
+		int unknownPetId = 99;
+		assertThatThrownBy(
+				() -> mockMvc.perform(get("/owners/{ownerId}/pets/{petId}/visits/new", TEST_OWNER_ID, unknownPetId)))
+			.hasRootCauseInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void processNewVisitFormOwnerNotFound() {
+		int unknownOwnerId = 99;
+		given(this.owners.findById(unknownOwnerId)).willReturn(Optional.empty());
+		assertThatThrownBy(
+				() -> mockMvc.perform(post("/owners/{ownerId}/pets/{petId}/visits/new", unknownOwnerId, TEST_PET_ID)
+					.param("date", LocalDate.now().plusDays(1).toString())
+					.param("description", "Checkup")))
+			.hasRootCauseInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test
